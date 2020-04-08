@@ -5,8 +5,6 @@
 #include <ctype.h>
 #include <stdbool.h>
 
-void thirdTask(int i, int lineAmount, char str[2000][200]) ;
-
 int main() {
     int i = 0, lineAmount = 0;
     char stringToRead[2000], str[2000][200];
