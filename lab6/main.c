@@ -8,11 +8,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
-int f;
-char name1[] = "1fifo";
-char name2[] = "2fifo";
-size_t size = 6;
+#include <stdlib.h>
 
 bool isStringWithOneNumber(char str[]) {
     char numbers[] = "123456789";
@@ -20,155 +16,104 @@ bool isStringWithOneNumber(char str[]) {
     for(int i = 0; i < strlen(str); i++) {
         for(int j = 0; j < strlen(numbers); j++) {
             if (str[i] == numbers[j]) {
-                num++;
+                    num++;
             }
         }
     }
     return num == 1 ? true : false;
 }
 
+char resStrings[5][50];
+
 void handler() {
-    printf("Handler work\n");
     printf("Child pid: %d \n", getpid());
-
-    f = open(name1, O_RDWR);
-    if (f < 0) {
-        printf("Can\'t open FIFO1 for reading\n");
-        return;
+    int fd;            //for opening FIFO
+    size_t size = 6;        //for write/read
+    char name1[]="first.fifo";    //name 1 FIRO
+    char name2[]="second.fifo";    //name 2 FIFO
+    if((fd = open(name1, O_RDONLY)) < 0) {        //open 1 FIFO
+        printf("Can not open FIFO for reading\n");
+        exit(-1);
     }
-    
-    char resStr1[50];
-    char resStr2[50];
-    char resStr3[50];
-    char resStr4[50];
-    char resStr5[50];
-
-    read(f, resStr1, size);
-    read(f, resStr2, size);
-    read(f, resStr3, size);
-    read(f, resStr4, size);
-    read(f, resStr5, size);
-    
-    close(f);
-    printf("Child read 5 strings\n");
-    printf("%s\n", resStr1);
-        
-    if(mkfifo(name2, 0666) < 0) {
-        printf("Can't create FIFO %d \n ", errno);
-        return;
+    for (int i = 0; i < 5; i++) {
+        read(fd, resStrings[i], size);
+        printf("%s\n", resStrings[i]);
     }
-
-    f = open(name2, O_RDWR);
-    if (f < 0) {
-        printf("Can\'t open FIFO2 for reading\n");
-        return;
+    printf("\nChild read 5 strings\n");
+    if (mknod(name2, S_IFIFO | 0666, 0) < 0) {    //create 2 FIFO
+        printf("Can not create FIFO\n");
+        exit(-1);
     }
-    
-    if (isStringWithOneNumber(resStr1)) {
-        write(f, resStr1, strlen(resStr1));
-    }
-
-    if (isStringWithOneNumber(resStr2)) {
-        write(f, resStr2, strlen(resStr2));
-    }
-
-    if (isStringWithOneNumber(resStr3)) {
-        write(f, resStr3, strlen(resStr3));
-    }
-    if (isStringWithOneNumber(resStr4)) {
-        write(f, resStr4, strlen(resStr4));
-    }
-
-    if (isStringWithOneNumber(resStr5)) {
-        write(f, resStr5, strlen(resStr5));
-    }
-
-    printf("Child (pid: %d) send strings with one number \n", getpid());
-    printf("Child exit \n\n");
-    close(f);
-    kill(getppid(), SIGUSR1);
+    close(fd);
 }
 
 int main() {
+    int fd;            //for opening FIFO
+    size_t size = 6;        //for write/read
+    char name1[]="first.fifo";    //name 1 FIRO
+    char name2[]="second.fifo";    //name 2 FIFO
     (void)umask(0);
-
-    int p0 = fork();
-    if (p0 < 0) {
-        printf("Can't fork child \n");
-        return -1;
-
-    } else if (p0 > 0) { //parent process
-        if(mkfifo(name1, 0666) < 0) {
-            printf("Can't create FIFO %d \n ", errno);
-            return -1;
-        }
-        
-        char str1[50];
-        printf("Eneter str1(5 symbols): ");
-        scanf("%s", str1);
-        str1[5] = 0;
-
-        char str2[50];
-        printf("Eneter str2(5 symbols): ");
-        scanf("%s", str2);
-        str2[5] = 0;
-
-        char str3[50];
-        printf("Eneter str3(5 symbols): ");
-        scanf("%s", str3);
-        str3[5] = 0;
-
-        char str4[50];
-        printf("Eneter str4(5 symbols): ");
-        scanf("%s", str4);
-        str4[5] = 0;
-
-        char str5[50];
-        printf("Eneter str5(5 symbols): ");
-        scanf("%s", str5);
-        str5[5] = 0;
-
-        printf("\nParent pid: %d\n", getpid());
-        f = open(name1, O_RDWR);
-        if (f < 0) {
-            printf("Can\'t open FIFO1 for writing\n");
-            return -1;
-        }
-
-        write(f, str1, size);
-        write(f, str2, size);
-        write(f, str3, size);
-        write(f, str4, size);
-        write(f, str5, size);
-
-        printf("%d\n", size);
-        printf("%s\n", str1);
-        
-        printf("Parent (pid: %d) send 5 strings \n\n", getpid());
-
-        close(f);
-        kill(p0, SIGUSR1);
-        waitpid(p0, NULL, 0);
-        
-        f = open(name2, O_RDWR);
-        if (f < 0) {
-            printf("Can\'t open FIFO2 for reading\n");
-            return -1;
-        }
-        
-        printf("Parent pid: %d \n", getpid());
-        printf("Answer: \n");
-        
-        for(int i = 0; i <= 5; i++) {
-            char str[size];
-            read(f, str, size);
-            printf("%s",str);
-        }
-        
-        close(f);
-        printf("\nParent (pid: %d) exit\n", getpid());
-    } else { // child process
-        (void)signal(SIGUSR1, handler);
-        pause();
+    system("rm *.fifo");
+    if (mknod(name1, S_IFIFO | 0666, 0) < 0) {
+        printf("Can not create FIFO\n");
+        exit(-1);
     }
+    int parent = fork();
+    if (parent > 0) {
+        sleep(1);
+        kill(parent, SIGUSR1);
+        sleep(2);
+        if ((fd = open(name1, O_WRONLY)) < 0) {        //open 1 FIFO
+            printf("Can not open FIFO for writing\n");
+            exit(-1);
+        }
+        char strings[5][50];
+        for (int i = 0; i < 5; i++) {
+            printf("Eneter str(5 symbols): ");
+            scanf("%s", strings[i]);
+            strings[i][5] = '\0';
+        }
+        printf("\nParent (pid: %d) send 5 strings", getpid());
+        for (int i = 0; i < 5; i++) {
+            write(fd, strings[i], size);
+        }
+        close(fd);
+        sleep(1);
+        if((fd = open(name2, O_RDONLY)) < 0) {
+            printf("Can not open FIFO for reading\n");
+            exit(-1);
+        }
+        kill(parent, SIGCONT);
+        sleep(4);
+        //printf("Parent pid: %d \n", getpid());
+        printf("Answer: \n");
+        for(int i = 0; i < 5; i++) {
+            char str[size];
+            read(fd, str, size);
+            printf("%s\n",str);
+        }
+        close(fd);
+        printf("\nParent (pid: %d) exit\n", getpid());
+    } else if (parent == 0) {
+        signal(SIGUSR1, handler);
+        pause();
+        if ((fd = open(name2, O_WRONLY)) < 0) {        //open 2 FIFO
+            printf("Can not open FIFO for writing\n");
+            exit(-1);
+        }
+        for (int i = 0; i < 5; i++) {
+            if (isStringWithOneNumber(resStrings[i])) {
+                write(fd, resStrings[i], strlen(resStrings[i]));
+                printf("%s write in second fifo\n", resStrings[i]);
+            }
+        }
+        printf("%d", getpid());
+        printf("%s\n", " give information result to parent");
+        close(fd);
+        exit(0);
+    } else {
+    printf("Can not fork parent\n");
+    exit(-1);
+    }
+    return 0;
 }
